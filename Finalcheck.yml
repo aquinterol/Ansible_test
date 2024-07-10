@@ -1,0 +1,87 @@
+#Post-health Checks - Post PCMD files check 
+---
+  - name: NRF pre deploy health check
+    hosts: all
+
+    vars:
+     name_space: " name_space "
+     admin_name: " admin_name "
+     user_pasword: " user_pasword "
+     remote_host_ip: " remote_host_ip "
+     time_value: "time_value"
+     destination_log: "destination_log" 
+     log_file_name: "log_file_name" 
+     ansible_python_interpreter: "ansible_python_interpreter"   
+     user_nrf: "user_nrf"
+     nrf_ip_add: "nrf_ip_add"
+     nrf_port: "nrf_port"
+     nrf_password: "nrf_password"
+
+    vars_files:
+     - ~/Documents/Ansible/Ansible/Vars_postchk.yml
+
+    tasks:
+
+      - name: List NRF pods  
+        shell: kubectl get pods -n {{name_space}}
+        register: pods_status         
+
+      - name: Get name of OAM   
+        shell: kubectl get pods -n {{name_space}} | grep oam | cut -d' ' -f1
+        register: oam_pod   
+
+      - name: Login in OaM pod and get data 
+        shell: kubectl exec -it {{oam_pod.stdout}} -n {{name_space}} -c cli -- bash -c "cd /var/lib/{{name_space}}-oam/pcmd/data/ && ls -ltr"
+        become: yes
+        ignore_errors: true 
+        timeout: 300   
+        register: lsout   
+
+      - name: Take the last two files 
+        shell: kubectl exec -it {{oam_pod.stdout}} -n {{name_space}} -c cli -- bash -c "cd /var/lib/{{name_space}}-oam/pcmd/data/ && ls | grep .csv.gz | tail -n 2"
+        become: yes
+        ignore_errors: true 
+        timeout: 300   
+        register: lastPCMD  
+
+
+      - name: Verify PCMD content loking for errors 
+        shell: kubectl exec -it {{oam_pod.stdout}} -n {{name_space}} -c cli -- bash -c "cd /var/lib/{{name_space}}-oam/pcmd/data/ && zcat {{lastPCMD.stdout_lines[-1]}} | grep 503 "
+        register: resultado_grep_one
+        ignore_errors: true
+
+      - name: Verify PCMD content loking for errors 
+        shell: kubectl exec -it {{oam_pod.stdout}} -n {{name_space}} -c cli -- bash -c "cd /var/lib/{{name_space}}-oam/pcmd/data/ && zcat {{lastPCMD.stdout_lines[-2]}} | grep 503 "
+        register: resultado_grep_two 
+        ignore_errors: true
+
+      - name: Output 503 error  
+        set_fact:
+          msg_palabra: >
+            {% if resultado_grep_one.stdout != "" or resultado_grep_two.stdout != "" %}
+            WARNING: The error code 503: Server unavailable, is inside the files:    
+            {% else %}
+            The error code 503: Server unavailable is not inside the files:
+            {% endif %}             
+
+      - name: Create output file 
+        lineinfile:
+          dest: "{{ destination_log}}/{{ log_file_name}}_{{ time_value}}.log"
+          line: " {{ item }} "
+          create: yes 
+        loop:
+            - " ===== Output system from SSH  ====="
+            - "Conected by SSH to the server {{admin_name}}@{{remote_host_ip}}"          
+            - " ===== NRF pods  =====" 
+            - "{{ pods_status.stdout }}"
+            - " ===== PCMD files   =====" 
+            - "{{ lsout.stdout }}"                     
+            - " ===== Healt check =====" 
+            - "{{msg_palabra}}"   
+            - "{{lastPCMD.stdout}}"         
+        delegate_to: localhost     
+       
+      - name: Fail if the error code 503 exist 
+        fail:
+          msg: "WARNING: The error code 503: Server unavailable, is on the files."
+        when: resultado_grep_one.stdout != "" or resultado_grep_two.stdout != "" 

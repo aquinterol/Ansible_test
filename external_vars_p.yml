@@ -1,0 +1,17 @@
+log_file_name: "Pods_Description"
+
+time_value: "{{ ansible_date_time.iso8601 }}"
+
+destination_log: "/home/sebastian/Escritorio"
+
+ansible_python_interpreter: "/usr/bin/python3"
+
+remote_admin: "sebastian"
+
+remote_user_pasword: "6P6rce7xv3"
+
+remote_host_ip: "192.168.202.228"
+
+carpeta_destino: "/home/ana/Documents/Ansible/logs_kub/"
+
+name_space: "default" #kube-system 

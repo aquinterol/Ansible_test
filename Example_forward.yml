@@ -1,0 +1,6 @@
+---
+- name: Redirigir salida de registro de un remoto a mi local 
+  hosts: localhost
+  tasks:
+    - name: Ejecutar playbook y redirigir salida de registro
+      shell: "ansible-playbook Example_localhost.yml -i Remote > ansible_log.txt"

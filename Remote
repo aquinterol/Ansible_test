@@ -1,0 +1,4 @@
+[servers]
+#server_1 ansible_host=192.168.117.4 ansible_user=leon
+#server_2 ansible_host=192.168.143.228 ansible_user=sebastian
+server_3 ansible_host=10.18.82.5 ansible_user=root ansible_password=root 

@@ -1,0 +1,143 @@
+# ---
+##Archivo 1: Conecta por ssh a otra maquina con el key autorizado y crea un txt
+#   - name: "Connect and write to a target"
+#     hosts: all
+
+#     tasks:
+
+#     - name: "test reachability"
+#       ping:
+   
+#     - name: Create an Empty File
+#       file: 
+#           path: ~/Documents/myfile.txt
+#           state: touch 
+
+---
+# Archivo 2: Connecta por SSH al remoto y ejecuta comandos de shell para mostrarlos en el debug del local 
+  - name: "Connect and read on the target"
+    hosts: all
+    gather_facts: no 
+
+    vars:
+     log_file_name: "log_file_name"
+     remote_admin: " remote_admin "
+     remote_user_pasword: " remote_user_pasword "
+     remote_host_ip: " remote_host_ip "
+     time_value: "time_value"
+     destination_log: "destination_log"
+     ansible_python_interpreter: "ansible_python_interpreter"
+     carpeta_destino: "carpeta_destino"
+
+    vars_files:
+     - ~/Documents/Ansible/Ansible/external_vars.yml
+
+    tasks:
+
+    - name: Prueba inicial de conexión por SSH
+      ping:
+      ignore_unreachable: true
+      register: ping_result 
+
+    - name: Install key for SHH on remote server
+      expect: 
+        command: ssh-copy-id -i /home/ana/.ssh/id_ed25519.pub {{ remote_admin }}@{{ remote_host_ip }}
+        responses: 
+          "password": "{{ remote_user_pasword }}\n"    
+      delegate_to: localhost    
+      register: ssh_copy_id_result
+      when: ping_result is defined and (ping_result.unreachable | default(false))
+
+    - debug: var=ssh_copy_id_result.stdout_lines
+
+    - name: "test reachability before SSH connection"
+      ping:
+   
+    - name: Collect data from Hardware
+      setup:
+        gather_subset:
+        - hardware
+
+    - name: Debug Hardware data     
+      debug:
+        var: hostvars[inventory_hostname].ansible_devices.keys() # | list
+
+    - name: get IP geolocation data
+      ipinfoio_facts: 
+      register: ipinfo
+
+    - debug:
+        msg: "Los datos de la maquina remota son: {{ ipinfo.ansible_facts | to_nice_yaml }}"
+
+    - name: Sincroniza toda la carpeta de logs de Leon a Localhost
+      synchronize:
+        src: "{{ destination_log}}"
+        dest: "{{ carpeta_destino}}"
+        mode: pull
+      delegate_to: localhost      
+
+    - name: Copiar de local a Leon 
+      copy:
+        src: /home/ana/Downloads/Imagen.jpg
+        dest: /home/leon/Documents  
+        #dest: /home/sebastian/Documents
+
+    - name: Buscar la ruta de un archivo  
+      shell: find ~+ -type f -name "Contenido.txt" 
+      register: ruta_archivo 
+
+    - debug: var=ruta_archivo.stdout  
+
+    - name: Revisar contenido de un archivo del remoto
+      shell: cat {{ ruta_archivo.stdout }} | grep 'Anita' 
+      register: resultado_grep 
+      ignore_errors: true
+
+    - name: "just execute a ls -lrt command"
+      shell: "ls -lrt"
+      register: "output"
+
+    - name: Run with items greater than 5
+      command: echo "Este es el loop" {{ item }} "en el directorio $PWD"
+      loop: [ 0, 4, 6, 8 ]
+      when: item > 5    
+
+    - name: Correr si "epic" o "monumental" es verdadero
+      ansible.builtin.shell: echo "Esto es épico o monumental!"
+      register: "state_general"
+      when: epic or monumental | bool
+
+    - name: Correr si "epic" es falso
+      ansible.builtin.shell: echo "Pero al parecer no es del todo épico!"
+      register: "state_epic"
+      when: not epic     
+
+    - name: Establecer la salida segun mi condicional 
+      set_fact:
+        msg_palabra: >
+          {% if resultado_grep.stdout != "" %}
+          se encuentra en el archivo!  
+          {% else %}
+          no se encuentra en el archivo :(
+          {% endif %}      
+
+    - name: Crear archivo de salida lectura remote host 
+      lineinfile:
+        dest: "{{ destination_log}}/{{ log_file_name}}_{{ time_value}}.log"
+        line: " {{ item }} "
+        create: yes 
+      loop:
+          - " ===== Salida del sistema al command par SSH ====="
+          - "Conectado por SSH al servidor {{remote_admin}}@{{remote_host_ip}}"
+          - " ===== Datos de Hardware / Utilización del disco =====" 
+          - "{{ hostvars[inventory_hostname].ansible_devices.keys() }}"
+          - " ===== Estado de la red e información de la misma =====" 
+          - "{{ ipinfo.ansible_facts | to_nice_yaml }}"           
+          - " ===== Revisión del archivo =====" 
+          - "El archivo se encuentra en la ruta {{ ruta_archivo.stdout }}"
+          - "La palabra Anita {{msg_palabra}}"  
+          - " ===== Lectura de archivos en el sistema ====="
+          - "{{ output.stdout }}"
+          - " ===== Verificación de salida a condicionales =====" 
+          - "{{ state_general.stdout | default(omit) }}"
+          - "{{ state_epic.stdout | default(omit) }}"        

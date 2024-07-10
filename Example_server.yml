@@ -1,0 +1,66 @@
+---
+- name: Creacion del server y página web 
+  hosts: all
+  become: yes #apt 
+  gather_facts: no 
+
+  tasks:
+   - name: Instala Apache o actualiza a la ultima version
+     yum:
+       name: httpd
+       state: latest
+
+   - name: Arranca el servicio de httpd si no esta activo
+     service:
+       name: httpd
+       state: started
+
+   - name: Abre el puerto y permite el trafico para el http
+     firewalld:
+       service: http
+       permanent: true
+       state: enabled
+
+   - name: crear un grupo en el sistema
+     group:
+       name: webcentos
+       state: present
+
+   - name: crear un administrador en el grupo 
+     user:
+       name: webadm
+       comment: "Web Admin"
+       password: $anitamaria123
+       groups: webcentos
+       append: yes
+
+   - name: set content directory group/permissions 
+     file:
+       path: /var/www/html
+       owner: root
+       group: webcentos
+       state: directory
+       mode: u=rwx,g=rwx,o=rx,g+s
+
+   - name: Recopilar hechos 
+     setup:    
+
+   - name: create default page content
+     copy:
+       content: "Bienvenidos a la pagina deeee  {{ ansible_fqdn }} en {{ ansible_default_ipv4.address }} "
+       dest: /var/www/html/index.html
+       owner: webadm
+       group: webcentos
+       mode: u=rw,g=rw,o=r
+
+
+    # Para visualización de la pagina: httṕ//IP/index.html
+    #Desde consola curl http://localhost/index.html
+    #Para ver el estado del Apache: sudo systemctl status httpd
+    #Para pausarlo sudo systemctl stop httpd 
+
+    #  - name: Pausa el servicio de httpd si no esta activo
+    #  service:
+    #    name: httpd
+    #    enabled: yes
+    #    state: stopped 

@@ -1,0 +1,130 @@
+# ---
+## Archivo 1: Mnada un comando al shell de la maquina, guarda la salida en un registro y la muestra en el debug. 
+  # - name: "Playing with Ansible and Git"
+  #   hosts: localhost
+  #   connection: local 
+  #   tasks:
+
+  #   - name: "just execute a ls -lrt command"
+  #     shell: "ls -lrt"
+  #     register: "output"
+
+  #   - debug: var=output.stdout_lines
+
+# ---  
+## Archivo 2: Realiza un ping, revisa si esta el brew, si no esta lo instala y crea un archivo txt
+#   - name: "My first play"
+#     hosts: localhost
+
+#     tasks:
+
+#     - name: "test reachability"
+#       ping:
+    
+#     - name: "install stress"
+#       homebrew:
+#         name: stress
+#         state: present #if the stress is not there this is gonna install it
+
+    # - name: Create an Empty File
+    #   file: 
+    #       path: ~/Ansible/myfile.txt
+    #       state: touch 
+
+# ---
+##Archivo 3: Realiza un find y copia la salida del comando en un archivo. 
+#  - name: "Challenge ping and copy"
+#    hosts: localhost
+    
+#    vars:
+#      log_file_name: "mi_archivo.log"
+
+#    tasks:
+
+#     - name: "test reachability"
+#       ping:
+   
+#     - name: "find module"
+#       find:
+#         path: ~/Documents/Ansible/Ansible
+#         file_type: file 
+
+#     - name: Print output to file
+#       ansible.builtin.copy:
+#           content: "{{find.stdout}}"
+#           dest: /your/local/file
+#       delegate_to: localhost  
+
+    # - name: Escribir la salida de un modulo en el log, con un condicional 
+    #   lineinfile:
+    #     dest: '{{"destination_log"}}{{ log_file_name}}_{{ time_value}}'
+    #     line: "{{ output.stdout }}" #write the lines from the output 
+    #     create: yes #create the file if doesn't exist
+    #   when: output.stdout is defined     
+
+---
+#Archivo 4: crea una variable para el archivo, lo crea y escribe la salida del modulo en el log. 
+  - name: "Local Host complete"
+    hosts: localhost
+    
+    vars:
+     log_file_name: "log_file_name"
+     time_value: "time_value"
+     epic: epic
+     monumental: "monumental"
+     destination_log: "destination_log"
+    
+    vars_files:
+     - ~/Documents/Ansible/Ansible/external_vars.yml
+
+    tasks:
+
+    - name: "test reachability"
+      ping:
+   
+    - name: "find module"
+      find:
+        path: ~/Documents/Ansible/Ansible
+        file_type: file 
+
+    - name: "just execute a ls -lrt command"
+      shell: "ls -lrt"
+      register: "output"
+
+    - name: Run with items greater than 5
+      command: echo "Este es el loop" {{ item }} "en el directorio $PWD"
+      loop: [ 0, 4, 6, 8 ]
+      when: item > 5    
+
+    - name: Correr si "epic" o "monumental" es verdadero
+      ansible.builtin.shell: echo "Esto es épico o monumental!"
+      register: "state_general"
+      when: epic or monumental | bool
+
+    - name: Correr si "epic" es falso
+      ansible.builtin.shell: echo "Pero al parecer no es del todo épico!"
+      register: "state_epic"
+      when: not epic   
+
+    - name: get IP geolocation data
+      ipinfoio_facts:    
+      register: ipinfo 
+
+    - name: Imprimir la ruta del archivo de log
+      debug:
+        msg: "La ruta del archivo de log es: {{ destination_log }}/{{ log_file_name}}_{{ time_value}}"
+  
+    - name: Escribir la salida de un modulo en el log, con un condicional 
+      lineinfile:
+        dest: "{{ destination_log}}/{{ log_file_name}}_{{ time_value}}.log"
+        line: " {{ item }} "
+        create: yes 
+      loop:
+          - " ===== Lectura de archivos en el sistema ====="
+          - "{{ output.stdout }}"
+          - " ===== Verificación de salida a condicionales =====" 
+          - "{{ state_general.stdout | default(omit) }}"
+          - "{{ state_epic.stdout | default(omit) }}"
+          - " ===== Estado de la red e información  =====" 
+          - "{{ ipinfo.ansible_facts | to_nice_yaml }}"
+      when: output.stdout is defined and ip_facts.stdout is defined    

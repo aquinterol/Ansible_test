@@ -1,0 +1,10 @@
+- name: Gestionar lectura y análisis de Kubernetes
+  hosts: all
+  tasks:
+    - name: Ejecutar comandos dentro del pod
+      command: kubectl exec -it pod1 -n default -- bash -c "ls -ltr && cd /var/lib && cat shells.state | grep dash"
+      register: shell_output
+      ignore_errors: true
+
+    - debug:
+        var: shell_output.stdout_lines

@@ -1,0 +1,26 @@
+---
+- name: Crear y ejecutar servicio de Kubernetes
+  hosts: all
+
+  tasks:
+    - name: Crear archivo YAML para el servicio
+      copy:
+        content: |
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: connectivity-service
+          spec:
+            type: LoadBalancer
+            loadBalancerIP: 192.168.117.17
+            selector:
+              app: connectivity-test
+            ports:
+            - protocol: TCP
+              port: 3200
+              targetPort: 3000 
+              nodePort: 30010
+        dest: "/tmp/service.yml"
+
+    - name: Crear el servicio en el clúster
+      command: /usr/local/bin/kubectl apply -f /tmp/service.yml

@@ -1,0 +1,60 @@
+---
+- name: Gestionar deployment en Kubernetes
+  hosts: all 
+
+  tasks:
+
+    - name: Ejecutar comando de Kubernetes y guardar salida
+      command: /usr/local/bin/minikube start -p multinode-demo --nodes 3
+      changed_when: false
+
+    - name: Crear archivo de definición de los pods
+      copy:
+        content: |
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: pod1
+            labels:
+              app: connectivity-test
+              node: multinode-demo
+          spec:
+            containers:
+            - name: test-container
+              image: nginx
+              ports:
+              - containerPort: 80          
+          ---
+          
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: pod2
+            labels:
+              app: connectivity-test
+              node: multinode-demo-m02
+          spec:
+            containers:
+            - name: test-container
+              image: nginx
+              ports:
+              - containerPort: 80          
+          ---
+          
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: pod3
+            labels:
+              app: connectivity-test
+              node: multinode-demo-m03
+          spec:
+            containers:
+            - name: test-container
+              image: nginx
+              ports:
+              - containerPort: 80
+        dest: "/tmp/3pods.yml"
+        
+    - name: Crear el pod en el clúster
+      command: /usr/local/bin/kubectl apply -f /tmp/3pods.yml
